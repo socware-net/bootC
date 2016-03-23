@@ -1,5 +1,5 @@
-#ifndef __UART_H__
-#define __UART_H__
+#ifndef UART0325
+#define UART0325
 
 void uart_init(unsigned _freq);
 

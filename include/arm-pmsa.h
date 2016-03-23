@@ -23,55 +23,59 @@
 /*-             socware.help@gmail.com                                        */
 /*-                                                                           */
 /*-****************************************************************************/
-OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
-OUTPUT_ARCH(arm)
-ENTRY(_start)
-STARTUP(startup.o)
-GROUP( libbootC.a libhal.a libc.a)
-MEMORY
+#ifndef PMSA160120
+#define PMSA160120
+
+#include "io.h"
+
+enum {
+	MPU_TYPE = 0xE000ED90,	// R    MPU Type Register
+	MPU_CTRL = 0xE000ED94,	// R/W  Control Register
+	MPU_RNR = 0xE000ED98,	// R/W  MPU Region Number Register
+	MPU_RBAR = 0xE000ED9C,	// R/W  MPU Region Base Address Register
+	MPU_RASR = 0xE000EDA0,	// R/W  MPU Region Attribute and Size Register
+};
+
+static inline int mpu_reg_no()
 {
-    LOADER          (arw) : ORIGIN = 0x20000000,    LENGTH = 0x00009000        /* 36k */
-    SYSRAM          (arw) : ORIGIN = 0x20009000,    LENGTH = 0x00037000        /* 256k */
+	return BI_G_FLD(reg(MPU_TYPE), 15, 8);
 }
 
-SECTIONS
+static inline void mpu_set(int n)
 {
-	. = 0x20000000;
-	.vectors	: { KEEP(*(.vectors))}
-	.vectors.mon	: { KEEP(*(.vectors.mon))}
-	.text           : { *(.text .text.* .rodata*)}>LOADER
-	_data_load= . ;
-	_data_sta = .;
-	.data           : { *(.data .data.* )}>LOADER
-	_data_end = . ;
-	. = ALIGN(4);
-	_bss_sta = .;
-	.bss            : { *(.bss .bss.* ) }>SYSRAM
-	_bss_end = .;
-	_end = . ;
-
-	PROVIDE(_stack = _end + 8096 );
-
-	.comment         0 : { *(.comment) }
-	.debug           0 : { *(.debug) }
-	.line            0 : { *(.line) }
-	.debug_srcinfo   0 : { *(.debug_srcinfo) }
-	.debug_sfnames   0 : { *(.debug_sfnames) }
-	.debug_aranges   0 : { *(.debug_aranges) }
-	.debug_pubnames  0 : { *(.debug_pubnames) }
-	.debug_info      0 : { *(.debug_info .gnu.linkonce.wi.*) }
-	.debug_abbrev    0 : { *(.debug_abbrev) }
-	.debug_line      0 : { *(.debug_line) }
-	.debug_frame     0 : { *(.debug_frame) }
-	.debug_str       0 : { *(.debug_str) }
-	.debug_loc       0 : { *(.debug_loc) }
-	.debug_macinfo   0 : { *(.debug_macinfo) }
-	.debug_weaknames 0 : { *(.debug_weaknames) }
-	.debug_funcnames 0 : { *(.debug_funcnames) }
-	.debug_typenames 0 : { *(.debug_typenames) }
-	.debug_varnames  0 : { *(.debug_varnames) }
-	.note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
-	.ARM.attributes  0 : { KEEP (*(.ARM.attributes)) }
-	/DISCARD/ : { *(.note.GNU-stack) *(.note.gnu*)}
+	reg(MPU_RNR) = n;
 }
 
+typedef union {
+	unsigned reg;
+	struct __attribute__ ((packed)) {
+		unsigned addr:27;
+		unsigned valid:1;
+		unsigned regn:4;
+	} fld;
+} mpu_base_t;
+
+#define mpu_base	((mpu_base_t *) 0xE000ED9C)
+
+typedef union {
+	unsigned reg;
+	struct __attribute__ ((packed)) {
+		unsigned res0:3;
+		unsigned xn:1;
+		unsigned res1:1;
+		unsigned ap:3;
+		unsigned res2:2;
+		unsigned tex:3;
+		unsigned s:1;
+		unsigned c:1;
+		unsigned b:1;
+		unsigned srd:8;
+		unsigned res3:2;
+		unsigned size:5;
+		unsigned enable:1;
+	};
+} mpu_attr_t;
+
+#define mpu_attr	((mpu_attr_t *) 0xE000EDA0)
+
+#endif

@@ -36,7 +36,7 @@ static unsigned freq;
 
 void uart_init(unsigned _freq)
 {
-	unsigned baudrate = 115200;
+	unsigned baudrate = BAUD;
 	u16 databit = UART_WLS_8;
 	u16 parity = UART_NONE_PARITY;
 	u16 stopbit = UART_1_STOP;
@@ -81,7 +81,7 @@ void uart_init(unsigned _freq)
 	reg(UART_BASE + UART_FRACDIV_M) = fraction_M_mapping[fraction];
 	reg(UART_BASE + UART_FRACDIV_L) = fraction_L_mapping[fraction];
 	reg(UART_BASE + UART_LCR) = (uart_lcr);	/* DLAB end */
-	reg(UART_BASE + UART_FCR) = 0x77;
+	reg(UART_BASE + UART_FCR) = 0xF7;
 #define UART_DATA_MASK                  0x0003
 #define UART_PARITY_MASK                0x0038
 #define UART_STOP_MASK                  0x0004

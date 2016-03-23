@@ -24,9 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef _CRC16_H_
-#define _CRC16_H_
+#ifndef CRC16
+#define CRC16
 
 unsigned short crc16_ccitt(const void *buf, int len);
 

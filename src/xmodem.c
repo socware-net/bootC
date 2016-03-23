@@ -33,10 +33,12 @@
      void _outbyte(int c);
 
  */
+#include <string.h>
+
 #include "uart.h"
 #include "xmodem.h"
 #include "crc16.h"
-#include "tmr.h"
+#include "plt.h"
 
 #define SOH  0x01
 #define STX  0x02
@@ -98,102 +100,7 @@ static void _outbyte(int c)
 	uart_putc((char)c);
 }
 
-#if 0
-/**
- * This is the original implementation of xmodem.c.
- */
-int xmodemReceive(unsigned char *dest, int destsz)
-{
-	unsigned char xbuff[1030];	/* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
-	unsigned char *p;
-	int bufsz, crc = 0;
-	unsigned char trychar = 'C';
-	unsigned char packetno = 1;
-	int i, c, len = 0;
-	int retry, retrans = MAXRETRANS;
-
-	for (;;) {
-		for (retry = 0; retry < 16; ++retry) {
-			if (trychar)
-				_outbyte(trychar);
-			if ((c = _inbyte((DLY_1S) << 1)) >= 0) {
-				switch (c) {
-				case SOH:
-					bufsz = 128;
-					goto start_recv;
-				case STX:
-					bufsz = 1024;
-					goto start_recv;
-				case EOT:
-					flushinput();
-					_outbyte(ACK);
-					return len;	/* normal end */
-				case CAN:
-					if ((c = _inbyte(DLY_1S)) == CAN) {
-						flushinput();
-						_outbyte(ACK);
-						return -1;	/* canceled by remote */
-					}
-					break;
-				default:
-					break;
-				}
-			}
-		}
-		if (trychar == 'C') {
-			trychar = NAK;
-			continue;
-		}
-		flushinput();
-		_outbyte(CAN);
-		_outbyte(CAN);
-		_outbyte(CAN);
-		return -2;	/* sync error */
-
-start_recv:
-		if (trychar == 'C')
-			crc = 1;
-		trychar = 0;
-		p = xbuff;
-		*p++ = c;
-		for (i = 0; i < (bufsz + (crc ? 1 : 0) + 3); ++i) {
-			if ((c = _inbyte(DLY_1S)) < 0)
-				goto reject;
-			*p++ = c;
-		}
-
-		if (xbuff[1] == (unsigned char)(~xbuff[2]) &&
-		    (xbuff[1] == packetno
-		     || xbuff[1] == (unsigned char)packetno - 1)
-		    && check(crc, &xbuff[3], bufsz)) {
-			if (xbuff[1] == packetno) {
-				register int count = destsz - len;
-				if (count > bufsz)
-					count = bufsz;
-				if (count > 0) {
-					memcpy(&dest[len], &xbuff[3], count);
-					len += count;
-				}
-				++packetno;
-				retrans = MAXRETRANS + 1;
-			}
-			if (--retrans <= 0) {
-				flushinput();
-				_outbyte(CAN);
-				_outbyte(CAN);
-				_outbyte(CAN);
-				return -3;	/* too many retry error */
-			}
-			_outbyte(ACK);
-			continue;
-		}
-reject:
-		flushinput();
-		_outbyte(NAK);
-	}
-}
-
-int xmodemTransmit(unsigned char *src, int srcsz)
+int xmodem_tx(unsigned char *src, int srcsz)
 {
 	unsigned char xbuff[1030];	/* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
 	int bufsz, crc = -1;
@@ -304,12 +211,10 @@ start_trans:
 	}
 }
 
-#endif
+static unsigned char xbuff[1030];	/* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
 
-int xmodem_block_rx(void *ptr,
-		    unsigned char * dest, int destsz, xmodem_rx_t function_pointer)
+int xmodem_block_rx(xmodem_rx_t function_pointer, void *ptr)
 {
-	unsigned char xbuff[1030];	/* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
 	unsigned char *p;
 	int bufsz, crc = 0;
 	unsigned char trychar = 'C';
@@ -372,9 +277,9 @@ start_recv:
 		     || xbuff[1] == (unsigned char)packetno - 1)
 		    && check(crc, &xbuff[3], bufsz)) {
 			if (xbuff[1] == packetno) {
-				register int count = destsz - len;
-				if (count > bufsz)
-					count = bufsz;
+				//register int count = destsz - len;
+				//if (count > bufsz)
+				int count = bufsz;
 				if (count > 0) {
 					//memcpy (&dest[len], &xbuff[3], count); // MTK
 					function_pointer(ptr, &xbuff[3], count);	// MTK
@@ -398,112 +303,3 @@ reject:
 		_outbyte(NAK);
 	}
 }
-
-#ifdef TEST_XMODEM_RECEIVE
-int main(void)
-{
-	int st;
-
-	printf
-	    ("Send data using the xmodem protocol from your terminal emulator now...\n");
-	/* the following should be changed for your environment:
-	   0x30000 is the download address,
-	   65536 is the maximum size to be written at this address
-	 */
-	st = xmodemReceive((char *)0x30000, 65536);
-	if (st < 0) {
-		printf("Xmodem receive error: status: %d\n", st);
-	} else {
-		printf("Xmodem successfully received %d bytes\n", st);
-	}
-
-	return 0;
-}
-#endif
-#ifdef TEST_XMODEM_SEND
-int main(void)
-{
-	int st;
-
-	printf("Prepare your terminal emulator to receive data now...\n");
-	/* the following should be changed for your environment:
-	   0x30000 is the download address,
-	   12000 is the maximum size to be send from this address
-	 */
-	st = xmodemTransmit((char *)0x30000, 12000);
-	if (st < 0) {
-		printf("Xmodem transmit error: status: %d\n", st);
-	} else {
-		printf("Xmodem successfully transmitted %d bytes\n", st);
-	}
-
-	return 0;
-}
-#endif
-
-/*
-#include "mt7687.h"
-#include "flash_map.h"
-#include "xmodem.h"
-#include "fota_config.h"
-#include "io.h"
-
-#define UPGRADE_BLOCK_SIZE  (4096)
-
-#define FOTU_BLOCK_SIZE (256)
-
-typedef struct fotu_job_s {
-	uint32_t partition;
-	uint32_t size;
-	uint32_t pos;
-} fotu_job_t;
-
-static int callbacks, rx_bytes;
-
-volatile unsigned int mdelay_count = 0;
-void Isr_SystickHandler(void)
-{
-    if (mdelay_count)
-        mdelay_count--;
-
-    return;
-}
-
-static void fotu_rx_callback(void *ptr, uint8_t * buffer, int len)
-{
-	fotu_job_t *job = ptr;
-
-	if (!ptr)
-		return;
-
-	if (len <= 0) {
-		return;
-	}
-
-	job->pos += len;
-
-	if (job->pos > job->size) {
-		return;
-	}
-
-	callbacks += 1;
-	rx_bytes += len;
-	fota_write(job->partition, buffer, len);
-}
-
-static void fotu_do(uint32_t partition, uint32_t len)
-{
-	uint8_t buffer[FOTU_BLOCK_SIZE];
-	fotu_job_t fotu_job = {.partition = partition,.size = len,.pos = 0
-	};
-
-	fota_init(&fota_flash_default_config);
-	fota_seek(partition, 0);
-
-	xmodem_block_rx(&fotu_job, buffer, len, fotu_rx_callback);
-
-	rx_bytes = callbacks = 0;
-
-	return;
-}
-*/

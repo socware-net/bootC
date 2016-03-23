@@ -31,7 +31,7 @@
 	.global __isr_vector
 __isr_vector:
 	.word	0x20007758
-	.word	_start+((LA-VA)|0x1)
+	.word	_start+((FA-VA)|0x1)
 	.word	0
 	.word	0
 	.word	0
@@ -47,8 +47,6 @@ __isr_vector:
 	.word	0
 	.word	0
 	.word	0
-	.space  128*4
-
 
 	.align 2
 	.global  _start
@@ -57,17 +55,22 @@ _start:
 	cpsid	i
 	ldr	sp, = _stack
 
-	ldr	r3, =_start
-	mov	r2, pc
-	subs	r3, r2, r3
-	cmp	r3, #32
+	mov	r0, pc
+	ldr	r1, =_start
+	subs	r1, r0, r1
+	cmp	r0, #32
 	bls.n	1f
-	ldr	r0, =_reloc
-	sub	r0, r0, VA-LA
+	// r0 = LA (1k aligned)
+	bic.w	r0, 0x3fC
+	bic.w	r0, 0x3
+	// r2 = VA-LA
+	ldr	r2, = VA
+	sub	r2, r2, r0
+	ldr	r1, =_reloc
+	sub	r1, r1, r2
 	ldr	lr,=1f
 	orr	lr, lr, #1
-	bx	r0
-
+	bx	r1
 1:
 	ldr r0,= _init
 	blx r0

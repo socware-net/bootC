@@ -1,4 +1,4 @@
-#include "tmr.h"
+#include "plt.h"
 #include "io.h"
 #include "_soc.h"
 
@@ -37,8 +37,9 @@ static void delay_ms(int n, unsigned ms)
 
 static int started;
 
-void _tmr_delay(int n, int ms)
+void tmr_delay(int ms)
 {
+	int n = 2;
 	unsigned b = (BASE_GPT + (n + 1) * 0x10);
 	if (!started) {
 		reg(b + 0) |= GPT_CTRL_EN | (1 << 1);
