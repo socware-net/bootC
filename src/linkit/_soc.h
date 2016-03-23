@@ -1,0 +1,11 @@
+#ifndef _SOC
+#define _SOC
+
+enum {
+	BASE_UART0 = 0x83030000,
+	BASE_PINMUX = 0x81023000,
+	BASE_TOPCFG = 0x83008000,
+	BASE_GPT = 0x83050000,
+};
+
+#endif

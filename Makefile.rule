@@ -1,0 +1,156 @@
+GCC    :=$(CROSS)gcc
+LD     :=$(CROSS)ld
+ifeq ($(CLANG),)
+CC     :=$(GCC)
+endif
+CXX    :=$(CROSS)g++
+OBJDUMP:=$(CROSS)objdump
+OBJCOPY:=$(CROSS)objcopy
+AR     :=$(CROSS)ar
+NM     :=$(CROSS)nm
+
+COBJ?=$(patsubst %.c,%.o, \
+		$(patsubst %.cpp, %.o, \
+			$(notdir $(foreach DIR,$(VPATH),\
+				$(wildcard $(DIR)/*.c) 	\
+				$(wildcard $(DIR)/*.cpp)))))
+DEP :=$(COBJ:%.o=%.d)
+
+%.d:%.cpp
+	@$(CC) -M $(INCLUDE) -D _UNIT_ -D _EXE_ $(CXXFLAGS) $< > $@
+
+%.d:%.c
+	@$(CC) -M $(INCLUDE) -D _UNIT_ -D _EXE_ $(CFLAGS) $< > $@
+
+%.e:%.cpp %.d
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(CONFIG) -E $< > $(notdir $(<:%.cpp=%.e.cpp))
+
+%.e:%.c %.d
+	$(CC) $(CFLAGS) $(INCLUDE) -E $< > $(notdir $(<:%.c=%.e.c))
+
+%.o:%.cpp %.d
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $<
+
+%.o:%.c %.d
+	$(CC) $(CFLAGS) $(INCLUDE) -c $<
+
+%.o:%.S
+	$(GCC) $(ASFLAGS) $(INCLUDE) $(CONFIG) -c $<
+
+%.o:%.s
+	$(GCC) $(ASFLAGS) $(INCLUDE) $(CONFIG) -c -x assembler-with-cpp $<
+
+%.o.text:%.o
+	$(CROSS)objdump -dS $^ > $@
+
+%.o.img:%.o
+	$(OBJCOPY) --strip-debug --strip-unneeded $^ $@
+
+%.o.mod:%.o
+	$(LD) -r -T$(MSCRIPT) -o$@ $^
+
+%.o.mod.img:%.o.mod
+	$(OBJCOPY) --strip-debug --strip-unneeded $^ $@
+	
+%.o.bin:%.o.img
+	$(OBJCOPY) -O binary $^ $@
+
+%.elf:%.c $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -D _EXE_ -o $(notdir $(<:%.c=%.e.o)) -c $<
+	$(CC) -o $@ $(notdir $(<:%.c=%.e.o)) $(LDFLAGS)
+
+%.elf:%.cpp $(LIB)
+	$(CC) $(CXXFLAGS) $(INCLUDE) $(CONFIG) -D _EXE_ -o $(notdir $(<:%.cpp=%.e.o)) -c $<
+	$(CC) -o $@ $(notdir $(<:%.cpp=%.e.o)) $(LDFLAGS)
+
+%.elf.run:
+	@echo ""
+	@printf "%s%-8s%s\n" "-----[ " "$(@:%.elf.run=%)" " ]------------------------------------------------------"
+	@echo ""
+	$(RUN)$(@:%.elf.run=%.elf)
+
+%.elf.debug:%.elf
+	ddd --debugger $(CROSS)gdb $^
+
+%.elf.text:%.elf
+	$(CROSS)objdump -dS $^ > $@
+
+%.elf.img:%.elf
+	$(OBJCOPY) --strip-debug $^ $@
+
+%.elf.bin:%.elf.img
+	$(OBJCOPY) -O binary $^ $@
+
+%.elf.sym:%.elf.img
+	$(NM) $^ | sed -e '/ [tbdaV] /d'  -e 's/.*[WBTDRA] //g' >$@
+	
+%.elf.sym.src:%.elf.sym
+	$(PREFIX)/bin/m-gen-msym-src.sh $^ > $@
+	
+%.elf.sym.o:%.elf.sym.src
+	@cp $^ ${^:%.src=%.c}
+	$(CC) $(CFLAGS) $(INCLUDE) -c ${^:%.src=%.c}; 
+	@rm ${^:%.src=%.c}
+
+%.elf.pack:%.o $(LIB) %.elf.sym.o
+	$(CC) -o $@ $(notdir $(<:%.c=%.e.o)) $(notdir $(<:%.o=%.elf.sym.o)) $(LDFLAGS)
+	
+%.x:%.c $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -D _UNIT_ -o $(notdir $(<:%.c=%.x.o)) -c $<
+	$(CROSS)nm $(notdir $(<:%.c=%.x.o)) | grep main
+	$(CC) -o $@ $(notdir $(<:%.c=%.x.o)) $(LDFLAGS)
+
+%.x:%.cpp $(LIB)
+	$(CC) $(CXXFLAGS) $(INCLUDE) $(CONFIG) -D _UNIT_ -o $(notdir $(<:%.cpp=%.x.o)) -c $<
+	$(CXX) -o $@ $(notdir $(<:%.cpp=%.x.o)) $(LDFLAGS)
+
+%.x.run:
+	@echo ""
+	@printf "%s%-8s%s\n" "-----[ " "$(@:%.x.run=%)" " ]------------------------------------------------------"
+	@echo ""
+	$(RUN)$(@:%.x.run=%.x)
+
+%.x.text:%.x
+	$(CROSS)objdump -dS $^ > $@
+
+%.x.img:%.x
+	$(OBJCOPY) --strip-debug $< $@
+
+%.x.bin:%.x.img
+	$(OBJCOPY) -O binary $< $@
+
+sinclude $(DEP)
+
+lib$(NAME).a:$(VOBJ)
+	$(AR) r $@ $?
+
+.PHONY:all install lib clean indent
+all: $(ALL) 
+	@echo
+
+install:
+	install -d $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/include/$(NAME) $(PREFIX)/doc $(PREFIX)/share
+	install -Dp $(LIB)  $(PREFIX)/lib/
+	install -Dp include/*.h  $(PREFIX)/include/$(NAME)/;echo -n ""
+	find -name "*.[hcS]" > $(PREFIX)/doc/$(NAME).files
+	find -name "*.cpp"  >> $(PREFIX)/doc/$(NAME).files
+	sed -e 's/^\./$(shell pwd|sed -e 's/\//\\\//g')/g' -i $(PREFIX)/doc/$(NAME).files
+	install -Dp bin/*   $(PREFIX)/bin ;echo -n ""
+	install -Dp share/*   $(PREFIX)/share;echo -n ""
+
+lib:$(LIB)
+	@echo "[lib ] done"
+
+clean:$(CLEAN)
+	rm -f `find -name "*~"`
+	rm -f include/conf_$(NAME).h *.*log *.o *.so *.files *.a *.x *.lib *.def *.dll *.elf* *.d *.text *.img *.srec *.bin *.hex *.short *.hex8 *.mod *.pack
+	rm -rf index
+
+indent:
+	indent -kr -i8 `find -name "*.[h,c]"`
+
+CSCOPE=$(wildcard $(PREFIX)/doc/*.files)
+cscope.out:install $(CSCOPE)
+	cat $(CSCOPE) > all.files
+	cscope -b -c -iall.files
+
