@@ -150,5 +150,4 @@ void plt_init()
 {
 	plt_ram = 0x20000000;
 	plt_ram_sz = 256 << 10;
-	_printf("FA=%x\n", FA);
 }
