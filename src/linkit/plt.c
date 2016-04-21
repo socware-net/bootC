@@ -9,6 +9,8 @@
 #define FLASH_COMM_CONF_SIZE        0x1000	/*   4KB */
 #define FLASH_STA_CONF_SIZE         0x1000	/*   4KB */
 #define FLASH_AP_CONF_SIZE          0x1000	/*   4KB */
+#define FLASH_CONF_SIZE		\
+	(FLASH_COMM_CONF_SIZE + FLASH_STA_CONF_SIZE + FLASH_AP_CONF_SIZE)
 #define FLASH_N9_RAM_CODE_SIZE      0x71000	/* 452KB */
 #define FLASH_CM4_XIP_CODE_SIZE     0xBF000	/* 764KB */
 #define FLASH_TMP_SIZE              0xBF000	/* 764KB */
@@ -92,7 +94,7 @@ void boot(unsigned addr)
 {
 	if (!addr)
 		addr = CM4_FLASH_CM4_ADDR + flash_off;
-	_printf("go %x\n", addr);
+	_printf("go %x\r\n", addr);
 	asm volatile ("bx  %0\n"::"r" (addr | 1));
 }
 
@@ -105,6 +107,7 @@ part_t parts[] = {
 	{"boot", 0x00000000, FLASH_LOADER_SIZE},
 	{"wifi", CM4_FLASH_N9_RAMCODE_ADDR, FLASH_N9_RAM_CODE_SIZE},
 	{"app ", CM4_FLASH_CM4_ADDR, FLASH_CM4_XIP_CODE_SIZE},
+	{"cfg ", CM4_FLASH_COMM_CONF_ADDR, FLASH_CONF_SIZE},
 	{0, 0, 0},
 };
 

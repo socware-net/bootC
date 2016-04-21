@@ -45,7 +45,7 @@ openocd.gdb:
 	echo target remote 127.0.0.1:3333 > $@
 	echo monitor reset init>> $@
 
-ddd:
+ddd:openocd.gdb
 	ddd --debugger $(CROSS)gdb -x openocd.gdb $(F)
 	
 gdb:
@@ -75,5 +75,5 @@ bootc.brom:
 .PHONY:bootc.flash
 bootc.flash:
 	$(MAKE) clean
-	$(MAKE) CONFIG="-DFA=0x10000000 -DVA=0x20000000 -DWAIT=6 -DBAUD=115200 -DHISTORY=3"
+	$(MAKE) CONFIG="-DFA=0x10000000 -DVA=0x20000000 -DWAIT=6 -DBAUD=$(BAUD) -DHISTORY=3"
 	mv  main.elf.bin $@
