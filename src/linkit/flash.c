@@ -58,7 +58,7 @@ void _flash_init(void)
 {
 	flash_config();
 	flash_switch_mode(1);
-	flash_page = spi_chip_info->page_size;
+	flash_page = 0x1000;	//spi_chip_info->page_size;
 	flash_sz = flash_page * spi_chip_info->n_pages;
 	flash_align = __builtin_ffs(flash_page) - 1;
 	flash_off = 0x10000000;
