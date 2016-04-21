@@ -52,20 +52,37 @@ typedef struct {
 	char *desc;
 } cmd_t;
 
-static void c_dump(void)
+static void _dump(int mode)
 {
-	unsigned i, a, sz;
+	unsigned i, a, sz, word;
 	if (!tokeni(&a) || !tokeni(&sz))
 		return;
 	a = BI_ALN(a, 4);
 	sz = BI_RUP(sz, 4);
 	for (i = 0; i < sz; i += sizeof(unsigned)) {
 		if (!(i & BI_TMSK(4)))
-			_printf("\r\n%x: ", a + i);
-		_printf("%x ", readl((void *)(a + i)));
+			_printf("\r\n%x: ", mode ? i : (a + i));
+		word = readl((void *)(a + i));
+		if (mode) {
+			word = ((word >> 24) & 0xff) |
+			    ((word << 8) & 0xff0000) |
+			    ((word >> 8) & 0xff00) |
+			    ((word << 24) & 0xff000000);
+		}
+		_printf("%x ", word);
 	}
 	_printf("\r\n");
 	_printf("\r\n");
+}
+
+static void c_dump(void)
+{
+	_dump(0);
+}
+
+static void c_xdump(void)
+{
+	_dump(1);
 }
 
 static void c_set(void)
@@ -168,6 +185,8 @@ cmd_t cmds[] = {
 	{'g', c_go, "(go) addr"}
 	,
 	{'d', c_dump, "(dump) addr size"}
+	,
+	{'x', c_xdump, "(xxd dump) addr size"}
 	,
 	{'S', c_set, "(set) addr size pattern"}
 	,
