@@ -4,6 +4,7 @@
 #include "term.h"
 #include "xmodem.h"
 #include "flash.h"
+#include <string.h>
 
 #define FLASH_LOADER_SIZE           0x8000	/*  32KB */
 #define FLASH_COMM_CONF_SIZE        0x1000	/*   4KB */
@@ -92,8 +93,17 @@ void pinmux_init()
 
 void boot(unsigned addr)
 {
+	char *arg, *p;
 	if (!addr)
 		addr = CM4_FLASH_CM4_ADDR + flash_off;
+	p = (char *)(BASE_SRAM + (256 << 10) - 256);
+	*(unsigned*)p = 0xBEEFBEEF;
+	p += 4;
+	while ((arg = strtok(0, " "))) {
+		strcpy(p, arg);
+		p += strlen(arg) + 1;
+	}
+	*p = 0;
 	_printf("go %x\r\n", addr);
 	asm volatile ("bx  %0\n"::"r" (addr | 1));
 }

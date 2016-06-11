@@ -104,8 +104,6 @@ static void c_go(void)
 	unsigned addr;
 	if (tokeni(&addr))
 		boot(addr);
-	else
-		boot(load_addr);
 }
 
 static void load_x(void *priv, unsigned char *b, int l)
