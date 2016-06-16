@@ -235,7 +235,7 @@ int main(void)
 	}
 	_printf("\r\n");
 	if (c == -1)
-		cmd("g");
+		cmd("g 0");
 	else
 		cmd("h");
 	while (1) {
