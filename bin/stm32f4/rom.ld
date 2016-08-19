@@ -27,30 +27,32 @@ OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 STARTUP(startup.o)
-GROUP( libbootC.a libhal.a libc.a)
+GROUP( libbootC.a libc.a libstm32f4.a)
+
 MEMORY
 {
-	LOADER          (arw) : ORIGIN = 0x20000000,    LENGTH = 36K
-	SYSRAM          (arw) : ORIGIN = 0x20009000,    LENGTH = 256K
+	FLASH	(arw)	: ORIGIN = 0x08000000, LENGTH = 1024K
+	RAM	(arw)	: ORIGIN = 0x20000000, LENGTH = 192K
 }
 
 SECTIONS
 {
-	. = 0x20000000;
-	.vectors	: { KEEP(*(.vectors))}
-	.text           : { *(.text .text.* .rodata*)}>LOADER
-	_data_load= . ;
-	_data_sta = .;
-	.data           : { *(.data .data.* )}>LOADER
-	_data_end = . ;
+	.vectors	: { KEEP(*(.vectors))}>FLASH
+	.text           : { *(.text .text.* .rodata*)}>FLASH
+	_data_load = .;
+	.data : AT ( _data_load )
+	{
+		_data_sta = .;
+		*(.data)
+		*(.data*)
+		_data_end = .;
+	} >RAM
 	. = ALIGN(4);
 	_bss_sta = .;
-	.bss            : { *(.bss .bss.* ) }>SYSRAM
+	.bss            : { *(.bss .bss.* ) }>RAM
 	_bss_end = .;
 	_end = . ;
-
 	PROVIDE(_stack = _end + 8096 );
-
 	.comment         0 : { *(.comment) }
 	.debug           0 : { *(.debug) }
 	.line            0 : { *(.line) }
@@ -73,4 +75,3 @@ SECTIONS
 	.ARM.attributes  0 : { KEEP (*(.ARM.attributes)) }
 	/DISCARD/ : { *(.note.GNU-stack) *(.note.gnu*)}
 }
-

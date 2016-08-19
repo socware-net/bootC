@@ -3,7 +3,7 @@
 
 void pinmux_init(void);
 
-unsigned freq_init(void);
+unsigned clk_init(void);
 
 void plt_init(void);
 

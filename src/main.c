@@ -153,6 +153,7 @@ static void c_fwrite(void)
 {
 	int r;
 	unsigned off, sz, addr;
+	off = sz = addr = 0;
 	if (!tokeni(&off) || !tokeni(&sz) || !tokeni(&addr))
 		return;
 	if ((r = _flash_write(off, sz, (void *)addr)))
@@ -177,6 +178,14 @@ static void c_help(void)
 	_printf("\r\n");
 }
 
+static void c_sleep(void)
+{
+	unsigned ms;
+	if (!tokeni(&ms))
+		return;
+	tmr_delay(ms);
+}
+
 cmd_t cmds[] = {
 	{'h', c_help, "(help)"}
 	,
@@ -198,6 +207,8 @@ cmd_t cmds[] = {
 	,
 	{'U', c_update, "(update) partition-no(U help)"}
 	,
+	{'s', c_sleep, "(sleep) ms"}
+	,
 	{0, 0}
 	,
 };
@@ -218,7 +229,7 @@ int main(void)
 {
 	int c, wait;
 	unsigned freq;
-	freq = freq_init();
+	freq = clk_init();
 	pinmux_init();
 	plt_init();
 	uart_init(freq);
@@ -266,10 +277,18 @@ void _reloc(unsigned la)
 		      :);
 }
 
-void _init()
+void _init_sec()
 {
+	extern char _data_load, _data_sta, _data_end;
 	extern char _bss_sta, _bss_end;
-	unsigned sz = (unsigned)&_bss_end - (unsigned)&_bss_sta;
+	unsigned sz;
+
+	if (_data_load != _data_sta) {
+		sz = (unsigned)&_data_end - (unsigned)&_data_sta;
+		memcpy(&_data_sta, &_data_load, sz);
+	}
+
+	sz = (unsigned)&_bss_end - (unsigned)&_bss_sta;
 	memset(&_bss_sta, 0, sz);
 }
 
