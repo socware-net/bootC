@@ -97,7 +97,7 @@ void boot(unsigned addr)
 	if (!addr)
 		addr = CM4_FLASH_CM4_ADDR + flash_off;
 	p = (char *)(BASE_SRAM + (256 << 10) - 256);
-	*(unsigned*)p = 0xBEEFBEEF;
+	*(unsigned *)p = 0xBEEFBEEF;
 	p += 4;
 	while ((arg = strtok(0, " "))) {
 		strcpy(p, arg);

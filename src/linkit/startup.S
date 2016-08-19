@@ -72,7 +72,7 @@ _start:
 	orr	lr, lr, #1
 	bx	r1
 1:
-	ldr r0,= _init
+	ldr r0,= _init_sec
 	blx r0
 	ldr r0,= main
 	bx  r0

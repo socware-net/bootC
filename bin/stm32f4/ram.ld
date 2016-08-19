@@ -27,17 +27,18 @@ OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 STARTUP(startup.o)
-GROUP( libbootC.a libhal.a libc.a)
+GROUP( libbootC.a libc.a libstm32f4xx.a)
 MEMORY
 {
-	LOADER          (arw) : ORIGIN = 0x20000000,    LENGTH = 36K
-	SYSRAM          (arw) : ORIGIN = 0x20009000,    LENGTH = 256K
+    LOADER          (arw) : ORIGIN = 0x20000000,    LENGTH = 0x00009000        /* 36k */
+    SYSRAM          (arw) : ORIGIN = 0x20009000,    LENGTH = 0x00037000        /* 256k */
 }
 
 SECTIONS
 {
 	. = 0x20000000;
 	.vectors	: { KEEP(*(.vectors))}
+	.vectors.mon	: { KEEP(*(.vectors.mon))}
 	.text           : { *(.text .text.* .rodata*)}>LOADER
 	_data_load= . ;
 	_data_sta = .;
@@ -73,4 +74,3 @@ SECTIONS
 	.ARM.attributes  0 : { KEEP (*(.ARM.attributes)) }
 	/DISCARD/ : { *(.note.GNU-stack) *(.note.gnu*)}
 }
-
